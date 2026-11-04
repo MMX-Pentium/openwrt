@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kosuke Shibuya <kakiringopcneko@gmail.com>
+Date: Wed, 4 Nov 2026 17:38:07 +0900
+Subject: [PATCH] mtd: cfi: reset flash after failed query attempts
+
+Return to array mode after the final CFI query attempt fails. The CFI
+probe caller returns without cfi_qry_mode_off() on this path, before
+physmap can try its ROM fallback.
+
+Signed-off-by: Kosuke Shibuya <kakiringopcneko@gmail.com>
+---
+--- a/drivers/mtd/chips/cfi_util.c
++++ b/drivers/mtd/chips/cfi_util.c
+@@ -278,6 +278,9 @@ int __xipram cfi_qry_mode_on(uint32_t ba
+ 	if (cfi_qry_present(map, base, cfi))
+ 		return 1;
+ 	/* QRY not found */
++	/* Return the device to array mode after the final query attempt. */
++	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL);
++	cfi_send_gen_cmd(0xFF, 0, base, map, cfi, cfi->device_type, NULL);
+ 	return 0;
+ }
+ EXPORT_SYMBOL_GPL(cfi_qry_mode_on);
