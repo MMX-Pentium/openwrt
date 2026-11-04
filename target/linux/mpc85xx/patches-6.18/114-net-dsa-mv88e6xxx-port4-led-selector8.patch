@@ -1,0 +1,97 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kosuke Shibuya <kakiringopcneko@gmail.com>
+Date: Wed, 4 Nov 2026 17:38:07 +0900
+Subject: [PATCH] net: dsa: mv88e6xxx: support port 4 LED selector 8 on 6352
+
+The NEC IX2106 stock firmware uses selector 8 for both LEDs on copper
+ports 0 through 4. Runtime tests on port 4 confirm that 0x88 reproduces
+its green/amber activity display, while 0x40 and 0x48 do not.
+
+Allow selector 8 for port 4 on the 88E6352 product only, and prefer it to
+selector 4 when both match the same link trigger. Keep selector 4 in the
+table for readback and preserve it for other products.
+
+Signed-off-by: Kosuke Shibuya <kakiringopcneko@gmail.com>
+---
+--- a/drivers/net/dsa/mv88e6xxx/leds.c
++++ b/drivers/net/dsa/mv88e6xxx/leds.c
+@@ -111,7 +111,9 @@ struct mv88e6xxx_led_hwconfig {
+ #define MV88E6XXX_PORT_4 BIT(4)
+ #define MV88E6XXX_PORT_5 BIT(5)
+ 
+-/* Entries are listed in selector order.
++/* Entries are listed in selector order, except on the 88E6352 product
++ * selector 8 is preferred over selector 4 for port 4 when both match the
++ * link trigger.
+  *
+  * These configurations vary across different switch families, list
+  * different tables per-family here.
+@@ -213,13 +215,6 @@ static const struct mv88e6xxx_led_hwconf
+ 	},
+ 	{
+ 		.led = 1,
+-		.portmask = MV88E6XXX_PORT_4,
+-		.rules = BIT(TRIGGER_NETDEV_LINK),
+-		.blink_activity = true,
+-		.selector = MV88E6XXX_PORT_LED_CONTROL_LED1_SEL4,
+-	},
+-	{
+-		.led = 1,
+ 		.portmask = MV88E6XXX_PORT_5,
+ 		.rules = BIT(TRIGGER_NETDEV_LINK),
+ 		.selector = MV88E6XXX_PORT_LED_CONTROL_LED1_SEL5,
+@@ -267,18 +262,25 @@ static const struct mv88e6xxx_led_hwconf
+ 	},
+ 	{
+ 		.led = 0,
+-		.portmask = MV88E6XXX_PORTS_0_3,
++		.portmask = MV88E6XXX_PORTS_0_3 | MV88E6XXX_PORT_4,
+ 		.rules = BIT(TRIGGER_NETDEV_LINK),
+ 		.selector = MV88E6XXX_PORT_LED_CONTROL_LED0_SEL8,
+ 	},
+ 	{
+ 		.led = 1,
+-		.portmask = MV88E6XXX_PORTS_0_3,
++		.portmask = MV88E6XXX_PORTS_0_3 | MV88E6XXX_PORT_4,
+ 		.rules = BIT(TRIGGER_NETDEV_LINK),
+ 		.blink_activity = true,
+ 		.selector = MV88E6XXX_PORT_LED_CONTROL_LED1_SEL8,
+ 	},
+ 	{
++		.led = 1,
++		.portmask = MV88E6XXX_PORT_4,
++		.rules = BIT(TRIGGER_NETDEV_LINK),
++		.blink_activity = true,
++		.selector = MV88E6XXX_PORT_LED_CONTROL_LED1_SEL4,
++	},
++	{
+ 		.led = 0,
+ 		.portmask = MV88E6XXX_PORT_5,
+ 		.rules = BIT(TRIGGER_NETDEV_LINK),
+@@ -362,6 +364,13 @@ static int mv88e6xxx_led_match_selector(
+ 		if (!(conf->portmask & BIT(p->port)))
+ 			continue;
+ 
++		if (p->port == 4 &&
++		    conf->selector == (led ? MV88E6XXX_PORT_LED_CONTROL_LED1_SEL8 :
++					   MV88E6XXX_PORT_LED_CONTROL_LED0_SEL8) &&
++		    p->chip->info->prod_num != MV88E6XXX_PORT_SWITCH_ID_PROD_6352)
++			continue;
++
++
+ 		if (conf->blink_activity != blink_activity)
+ 			continue;
+ 
+@@ -404,6 +413,12 @@ mv88e6xxx_led_match_rule(struct mv88e6xx
+ 		if (!(conf->portmask & BIT(p->port)))
+ 			continue;
+ 
++		if (p->port == 4 &&
++		    conf->selector == (led ? MV88E6XXX_PORT_LED_CONTROL_LED1_SEL8 :
++					   MV88E6XXX_PORT_LED_CONTROL_LED0_SEL8) &&
++		    p->chip->info->prod_num != MV88E6XXX_PORT_SWITCH_ID_PROD_6352)
++			continue;
++
+ 		if (conf->selector == selector) {
+ 			dev_dbg(p->chip->dev, "port%d LED %d has selector %04x, rules %08lx\n",
+ 				p->port, led, selector, conf->rules);
