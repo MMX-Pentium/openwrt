@@ -68,7 +68,7 @@ Signed-off-by: Kosuke Shibuya <kakiringopcneko@gmail.com>
  		.led = 0,
  		.portmask = MV88E6XXX_PORT_5,
  		.rules = BIT(TRIGGER_NETDEV_LINK),
-@@ -362,6 +364,13 @@ static int mv88e6xxx_led_match_selector(
+@@ -362,6 +364,12 @@ static int mv88e6xxx_led_match_selector(
  		if (!(conf->portmask & BIT(p->port)))
  			continue;
  
@@ -78,11 +78,10 @@ Signed-off-by: Kosuke Shibuya <kakiringopcneko@gmail.com>
 +		    p->chip->info->prod_num != MV88E6XXX_PORT_SWITCH_ID_PROD_6352)
 +			continue;
 +
-+
  		if (conf->blink_activity != blink_activity)
  			continue;
  
-@@ -404,6 +413,12 @@ mv88e6xxx_led_match_rule(struct mv88e6xx
+@@ -404,6 +412,12 @@ mv88e6xxx_led_match_rule(struct mv88e6xx
  		if (!(conf->portmask & BIT(p->port)))
  			continue;
  
